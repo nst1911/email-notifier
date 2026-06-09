@@ -1,0 +1,446 @@
+#include "daemon.h"
+#include "log.h"
+#include <QDBusConnectionInterface>
+#include <QDBusInterface>
+
+namespace
+{
+
+constexpr const char *c_dbusServiceName = "com.github.emailnotifier";
+constexpr const char *c_dbusObjectPath = "com/github/emailnotifier";
+
+constexpr const char *c_startMonitoringErrorMsg = "Monitoring not started:";
+constexpr const char *c_mailRequestErrorMsg = "Mail request failed:";
+constexpr const char *c_fetchingMailboxesErrorMsg = "Fetching mailboxes failed:";
+constexpr const char *c_nullptrMsg = "One or more modules are nullptr";
+constexpr const char *c_setupErrorMsg = "Setting up daemon failed:";
+
+const QString c_readFromStorageFailedErrorMsg = "Reading '%1' from storage failed. Error: %2"; // clazy:skip
+const QString c_writeToStorageFailedErrorMsg = "Writing '%1' to storage failed. Error: %2"; // clazy:skip
+const QString c_invalidModuleMsg = "%1 is not valid"; // clazy:skip
+
+}
+
+Daemon::Daemon(IMailClient *mailClient, IPersistentStorage *storage, INotificationManager *manager, QObject *parent)
+    : IDaemon(parent),
+      m_mailClient(mailClient),
+      m_storage(storage),
+      m_notificationMngr(manager)
+{
+    m_mailRequestTimer = new QTimer(this);
+    connect(m_mailRequestTimer, &QTimer::timeout, this, &Daemon::onMailRequestTimerTimeout);
+
+    connect(this, &Daemon::sendNotification, this, &Daemon::onSendNotification);
+
+    logInfo() << "Daemon created";
+}
+
+Daemon::~Daemon()
+{
+    m_mailRequestTimer->stop();
+}
+
+void Daemon::registerDBusService()
+{
+    registerDBusMetaTypes();
+
+    auto connection = QDBusConnection::sessionBus();
+    if (connection.interface()->isServiceRegistered(DAEMON_DBUS_SERVICE_NAME))
+    {
+        logCritical() << QString("D-Bus service already registered: \"%1\"").arg(DAEMON_DBUS_SERVICE_NAME);
+        return;
+    }
+
+    if (!connection.registerObject(DAEMON_DBUS_OBJECT_PATH, this, QDBusConnection::ExportAllSlots))
+    {
+        logCritical() << QString("Cannot register D-Bus object: \"%1\". Error: \"%2\"").arg(DAEMON_DBUS_OBJECT_PATH, connection.lastError().message());
+        return;
+    }
+
+    if (!connection.registerService(DAEMON_DBUS_SERVICE_NAME))
+    {
+        logCritical() << QString("Cannot register D-Bus service: \"%1\". Error: \"%2\"").arg(DAEMON_DBUS_SERVICE_NAME, connection.lastError().message());
+        return;
+    }
+
+    logInfo() << QString("D-Bus service registered: \"%1\"").arg(DAEMON_DBUS_SERVICE_NAME);
+}
+
+IMailClient *Daemon::mailClient() const
+{
+    return m_mailClient;
+}
+
+IPersistentStorage *Daemon::persistentStorage() const
+{
+    return m_storage;
+}
+
+INotificationManager *Daemon::notificationManager() const
+{
+    return m_notificationMngr;
+}
+
+bool Daemon::isValid() const
+{
+    return !checkModulesNullptr();
+}
+
+Result<IDaemon::Status> Daemon::status() const
+{
+    if (checkModulesNullptr())
+    {
+        return Result<Status>::error(c_nullptrMsg);
+    }
+    if (!m_storage->isValid())
+    {
+        return Result<Status>::error(c_invalidModuleMsg.arg("Persistent storage"));
+    }
+
+    QStringList errors;
+
+    Configuration config;
+    Result<Configuration> configResult = m_storage->readConfiguration();
+    if (!configResult.success())
+    {
+        errors.append(c_readFromStorageFailedErrorMsg.arg("configuration", configResult.errorMessage()));
+    }
+    else
+    {
+        config = configResult.data();
+    }
+
+    Message lastError;
+    Result<Message> lastErrorResult = m_storage->readErrorLogMessage();
+    if (!lastErrorResult.success())
+    {
+        errors.append(c_readFromStorageFailedErrorMsg.arg("lastError", lastErrorResult.errorMessage()));
+    }
+    else
+    {
+        lastError = lastErrorResult.data();
+    }
+
+    Status status;
+    status.isMonitoringActivated = isMonitoringActivated();
+    status.configuration = config;
+    status.lastError = lastError;
+
+    if (errors.isEmpty())
+    {
+        return Result<Status>::success(status);
+    }
+
+    return Result<Status>::error(errors.join("; "), status);
+}
+
+QString Daemon::startMonitoring()
+{
+    logInfo() << "Starting monitoring...";
+
+    QString result;
+    auto scopeGuard = qScopeGuard([this, &result]() {
+        if (!result.isEmpty())
+        {
+            writeErrorLogMessage("startMonitoring", result);
+        }
+    });
+
+    m_mailRequestTimer->stop();
+
+    if (checkModulesNullptr())
+    {
+        result = c_nullptrMsg;
+        return result;
+    }
+
+    if (!m_notificationMngr->isValid())
+    {
+        result = c_invalidModuleMsg.arg("Notification manager");
+        return result;
+    }
+
+    if (!m_storage->isValid())
+    {
+        result = c_invalidModuleMsg.arg("Persistent storage");
+        return result;
+    }
+
+    Result<Configuration> configResult = m_storage->readConfiguration();
+    if (!configResult.success())
+    {
+        result = c_readFromStorageFailedErrorMsg.arg("configuration", configResult.errorMessage());
+        return result;
+    }
+    Configuration config = configResult.data();
+
+    m_mailClient->setConfiguration(config);
+    if (!m_mailClient->isValid())
+    {
+        result = c_invalidModuleMsg.arg("Mail client");
+        return result;
+    }
+
+    m_mailRequestTimer->setInterval(config.mailRequestIntervalMs);
+
+    logInfo() << "Monitoring started successfully";
+    m_mailRequestTimer->start();
+    onMailRequestTimerTimeout();
+
+    result = "";
+    return result;
+}
+
+QString Daemon::stopMonitoring()
+{
+    m_mailRequestTimer->stop();
+    return "";
+}
+
+QString Daemon::setup(const Configuration &config)
+{
+    QString result;
+    auto scopeGuard = qScopeGuard([this, &result]() {
+        if (!result.isEmpty())
+        {
+            writeErrorLogMessage("setup", result);
+        }
+    });
+
+    if (checkModulesNullptr())
+    {
+        result = c_nullptrMsg;
+        return result;
+    }
+    if (isMonitoringActivated())
+    {
+        result = "Monitoring is already activated";
+        return result;
+    }
+    if (!m_storage->isValid())
+    {
+        result = c_invalidModuleMsg.arg("Persistent storage");
+        return result;
+    }
+    if (!config.isValid())
+    {
+        result = QString("Invalid configuration: %1").arg(config.toString());
+        return result;
+    }
+
+    logInfo() << "Setting up daemon:" << config.toString();
+
+    if (QString configResult = m_storage->writeConfiguration(config); !configResult.isEmpty())
+    {
+        result = c_writeToStorageFailedErrorMsg.arg("configuration", configResult);
+        return result;
+    }
+
+    // Clear last message UIDs
+    if (QString uidResult = m_storage->writeLastMessageUIDs({}); !uidResult.isEmpty())
+    {
+        result = c_writeToStorageFailedErrorMsg.arg("lastMessageUIDs", uidResult);
+        return result;
+    }
+
+    result = "";
+    return result;
+}
+
+Result<QStringList> Daemon::fetchMailboxes()
+{
+    logInfo() << "Fetching mailboxes";
+
+    Result<QStringList> result;
+    auto scopeGuard = qScopeGuard([this, &result]() {
+        if (!result.success())
+        {
+            writeErrorLogMessage("fetchMailboxes", result.errorMessage());
+        }
+    });
+
+    if (checkModulesNullptr())
+    {
+        result = Result<QStringList>::error(c_nullptrMsg);
+        return result;
+    }
+    if (!m_mailClient->isValid())
+    {
+        result = Result<QStringList>::error(c_invalidModuleMsg.arg("Mail client"));
+        return result;
+    }
+
+    Result<QStringList> fetchResult = m_mailClient->fetchMailboxes();
+    if (!fetchResult.success())
+    {
+        result = Result<QStringList>::error(fetchResult.errorMessage());
+        return result;
+    }
+    if (fetchResult.data().isEmpty())
+    {
+        result = Result<QStringList>::error("No mailboxes found");
+        return result;
+    }
+
+    result = Result<QStringList>::success(fetchResult.data());
+    return result;
+}
+
+void Daemon::onMailRequestTimerTimeout()
+{
+    Notification notification;
+    auto createErrorNotification = [](const QString &msg) {
+        Notification notification;
+        notification.summary = "Error occured";
+        notification.body = msg;
+        notification.urgency = Notification::Error;
+        return notification;
+    };
+
+    auto scopeGuard = qScopeGuard([this, &notification] {
+        if (notification.isValid())
+        {
+            bool success = notification.urgency != Notification::Error;
+            if (!success)
+            {
+                writeErrorLogMessage("onMailRequestTimerTimeout", notification.body);
+                m_mailRequestTimer->stop();
+            }
+            emit sendNotification(success, notification);
+        }
+        emit mailRequestFinished();
+    });
+
+    logInfo() << "Performing mail request...";
+
+    if (checkModulesNullptr())
+    {
+        notification = createErrorNotification(QString("%1 \"%2\"").arg(c_mailRequestErrorMsg, c_nullptrMsg));
+        return;
+    }
+
+    // Fetch last message UIDs from mail server
+
+    Result<LastMessageUIDs> fetchLastMessageUIDsResult = m_mailClient->fetchLastMessageUIDs();
+    if (!fetchLastMessageUIDsResult.success())
+    {
+        const QString msg = QString("%1 \"%2\"")
+            .arg(c_mailRequestErrorMsg)
+            .arg(QString("Fetching lastMessageUID failed. Error: %1").arg(fetchLastMessageUIDsResult.errorMessage()));
+        notification = createErrorNotification(msg);
+        return;
+    }
+
+    Result<LastMessageUIDs> uidResult = m_storage->readLastMessageUIDs();
+    if (!uidResult.success())
+    {
+        const QString msg = c_readFromStorageFailedErrorMsg.arg("lastMessageUIDs", uidResult.errorMessage());
+        notification = createErrorNotification(msg);
+        return;
+    }
+
+    LastMessageUIDs oldLastMessageUIDs = uidResult.data();
+    LastMessageUIDs newLastMessageUIDs = fetchLastMessageUIDsResult.data();
+
+    if (QString uidsResult = m_storage->writeLastMessageUIDs(newLastMessageUIDs); !uidsResult.isEmpty())
+    {
+        const QString msg = QString("%1 \"%2\"")
+            .arg(c_mailRequestErrorMsg)
+            .arg(c_writeToStorageFailedErrorMsg.arg("lastMessageUIDs", uidsResult));
+        notification = createErrorNotification(msg);
+        return;
+    }
+
+    if (oldLastMessageUIDs.isEmpty())
+    {
+        logInfo() << "Mail request finished: \"New messages not found (first request after setting up daemon)\"";
+        return;
+    }
+
+    QStringList mailboxesWithUpdates = compareLastMessageUIDs(oldLastMessageUIDs, newLastMessageUIDs);
+    if (mailboxesWithUpdates.isEmpty())
+    {
+        logInfo() << "Mail request finished: \"New messages not found\"";
+        return;
+    }
+
+    logInfo() << "Mail request finished: \"Found new message(s)\"";
+
+    notification.summary = "New message(s) have been received";
+    notification.body = QString("Check \"%1\" mailbox").arg(mailboxesWithUpdates.join(", "));
+    notification.urgency = Notification::Info;
+}
+
+void Daemon::onSendNotification(bool success, const Notification &notification)
+{
+    Q_UNUSED(success); // need for tests
+
+    QString result;
+    auto scopeGuard = qScopeGuard([this, &result]() {
+        if (!result.isEmpty())
+        {
+            writeErrorLogMessage("onSendNotification", result);
+        }
+    });
+
+    if (!m_notificationMngr->sendNotification(notification))
+    {
+        result = "Sending notification failed";
+        logCritical() << result;
+    }
+}
+
+bool Daemon::isMonitoringActivated() const
+{
+    return m_mailRequestTimer->isActive();
+}
+
+void Daemon::writeErrorLogMessage(const QString &funcName, const QString &message)
+{
+    logCritical() << message;
+
+    if (!m_storage)
+    {
+        return;
+    }
+    if (!m_storage->isValid())
+    {
+        return;
+    }
+
+    Message msg;
+    msg.message = QString("[%1] %2").arg(funcName, message);
+    msg.timestamp = QDateTime::currentDateTime();
+    msg.type = Message::Error;
+
+    if (QString result = m_storage->writeErrorLogMessage(msg); !result.isEmpty())
+    {
+        logCritical() << c_writeToStorageFailedErrorMsg.arg("errorLogMessage", result);
+        return;
+    }
+}
+
+QStringList Daemon::compareLastMessageUIDs(const LastMessageUIDs &oldUids, const LastMessageUIDs &newUids) const
+{
+    QStringList mailboxes;
+
+    for (auto it = newUids.constBegin(); it != newUids.constEnd(); ++it)
+    {
+        if (!oldUids.contains(it.key()))
+        {
+            continue;
+        }
+        if (it.value() != oldUids.value(it.key()))
+        {
+            mailboxes.append(it.key());
+            break;
+        }
+    }
+
+    return mailboxes;
+}
+
+bool Daemon::checkModulesNullptr() const
+{
+    return !m_mailClient || !m_storage || !m_notificationMngr;
+}
