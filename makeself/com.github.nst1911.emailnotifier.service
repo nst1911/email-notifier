@@ -1,0 +1,13 @@
+[Unit]
+Description=<PROGRAM_NAME>
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=dbus
+BusName=<SERVICE_NAME>
+Environment=QT_LOGGING_RULES="*=true"
+ExecStart=%h/.local/bin/<PROGRAM_NAME>/<DAEMON_NAME>
+
+[Install]
+WantedBy=graphical-session.target

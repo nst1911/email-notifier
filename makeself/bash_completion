@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+
+_email_notifier_completions() {
+    local cur prev words cword
+    _init_completion || return
+
+    local commands="setup start stop status fetch-mailboxes"
+    local help_options="--help --version"
+
+    local setup_options="--host --port --login --mailboxes --interval"
+    local all_options="$help_options $setup_options"
+
+    # Check if we're completing a command (first argument)
+    if [[ $cword -eq 1 ]]; then
+        case "$cur" in
+            -*) # Complete options for main command
+                COMPREPLY=($(compgen -W "$help_options" -- "$cur"))
+                ;;
+            *) # Complete commands
+                COMPREPLY=($(compgen -W "$commands" -- "$cur"))
+                ;;
+        esac
+        return
+    fi
+
+    # Get the command being used
+    local cmd="${words[1]}"
+
+    # Handle command-specific completions
+    case "$cmd" in
+        setup)
+            # Complete options for setup command
+            if [[ "$cur" == -* ]]; then
+                COMPREPLY=($(compgen -W "$setup_options" -- "$cur"))
+                return
+            fi
+            ;;
+    esac
+
+    # Fallback: complete options
+    if [[ "$cur" == -* ]]; then
+        COMPREPLY=($(compgen -W "$all_options" -- "$cur"))
+    fi
+}
+
+# Register the completion function
+complete -F _email_notifier_completions email-notifier
