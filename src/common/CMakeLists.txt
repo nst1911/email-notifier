@@ -36,6 +36,8 @@ add_library(${PROJECT_NAME} STATIC
     log.h
     logmessage.cpp
     logmessage.h
+    messageinfo.cpp
+    messageinfo.h
     notification.cpp
     notification.h
     persistentstorage.cpp
