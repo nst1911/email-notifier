@@ -16,12 +16,12 @@ bool MockPersistentStorage::isValid() const
     return m_testData.isValid;
 }
 
-Result<Message> MockPersistentStorage::readErrorLogMessage() const
+Result<LogMessage> MockPersistentStorage::readErrorLogMessage() const
 {
-    return isValid() ? m_testData.readErrorLogMessage : Result<Message>::error(c_isValidErrMsg);
+    return isValid() ? m_testData.readErrorLogMessage : Result<LogMessage>::error(c_isValidErrMsg);
 }
 
-QString MockPersistentStorage::writeErrorLogMessage(const Message &message)
+QString MockPersistentStorage::writeErrorLogMessage(const LogMessage &message)
 {
     m_testData.writeErrorLogMessageCalled = true;
     return isValid() ? m_testData.writeErrorLogMessage : c_isValidErrMsg;

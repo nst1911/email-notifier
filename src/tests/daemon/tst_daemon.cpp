@@ -115,7 +115,7 @@ void DaemonQtTest::status_data()
 
     {
         MockPersistentStorage::TestData testData = happyPathStorageTestData();
-        testData.readErrorLogMessage = Result<Message>::error("error");
+        testData.readErrorLogMessage = Result<LogMessage>::error("error");
 
         IDaemon::Status status = Examples::validDaemonStatus();
         status.lastError = {};
@@ -853,7 +853,7 @@ MockPersistentStorage::TestData DaemonQtTest::happyPathStorageTestData() const
     testData.writeDaemonConfiguration = "";
     testData.readLastMessageUIDs = Result<LastMessageUIDs>::success(Examples::validLastMessageUIDs());
     testData.writeLastMessageUIDs = "";
-    testData.readErrorLogMessage = Result<Message>::success(Examples::validErrorLogMessage());
+    testData.readErrorLogMessage = Result<LogMessage>::success(Examples::validErrorLogMessage());
     testData.writeErrorLogMessage = "";
     testData.writeErrorLogMessageCalled = false;
     testData.readPassword = Result<QString>::success(Examples::validMailClientConfig().password);

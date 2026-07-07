@@ -4,7 +4,7 @@
 #include <QJsonObject>
 #include <QString>
 
-struct Message
+struct LogMessage
 {
     enum Type
     {
@@ -16,11 +16,11 @@ struct Message
     static QString typeToStr(Type type);
     static Type strToType(const QString &str);
 
-    Message() = default;
-    Message(const QJsonObject &obj);
+    LogMessage() = default;
+    LogMessage(const QJsonObject &obj);
 
     bool isValid() const;
-    bool operator==(const Message &other) const;
+    bool operator==(const LogMessage &other) const;
     explicit operator QJsonObject() const;
 
     QString toString() const;
@@ -30,4 +30,4 @@ struct Message
     Type type;
 };
 
-Q_DECLARE_METATYPE(Message);
+Q_DECLARE_METATYPE(LogMessage);

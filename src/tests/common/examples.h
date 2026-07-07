@@ -2,7 +2,7 @@
 
 #include "interfaces/idaemon.h"
 #include "interfaces/imailclient.h"
-#include "message.h"
+#include "logmessage.h"
 
 namespace Examples
 {
@@ -43,12 +43,12 @@ LastMessageUIDs validLastMessageUIDs()
     return lastMessageUIDs;
 }
 
-Message validErrorLogMessage()
+LogMessage validErrorLogMessage()
 {
-    Message message;
+    LogMessage message;
     message.message = "error";
     message.timestamp = QDateTime(QDate(1996, 11, 26), QTime(7, 40, 33, 255));
-    message.type = Message::Error;
+    message.type = LogMessage::Error;
     return message;
 }
 

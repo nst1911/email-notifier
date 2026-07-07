@@ -417,9 +417,9 @@ CommandLineInterface::ExitCode CommandLineInterface::executeStatusCmd()
         "    %1"
     ).arg(statusResult.data().isMonitoringActivated ? "Activated" : "Not activated");
 
-    Message lastError = statusResult.data().lastError;
+    LogMessage lastError = statusResult.data().lastError;
     QString lastErrorMsg;
-    if (lastError.isValid() && lastError.type == Message::Error)
+    if (lastError.isValid() && lastError.type == LogMessage::Error)
     {
         lastErrorMsg = QString(
             "  [Last error message]\n"

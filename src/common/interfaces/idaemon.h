@@ -2,7 +2,7 @@
 
 #include "imailclient.h"
 #include "imodule.h"
-#include "message.h"
+#include "logmessage.h"
 #include "result.h"
 #include <QJsonObject>
 #include <QStringList>
@@ -39,7 +39,7 @@ public:
     {
         IDaemon::Configuration configuration;
         bool isMonitoringActivated;
-        Message lastError;
+        LogMessage lastError;
         bool operator==(const Status &other) const;
     };
 

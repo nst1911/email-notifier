@@ -12,8 +12,8 @@ public:
 
     bool isValid() const override;
 
-    Result<Message> readErrorLogMessage() const override;
-    QString writeErrorLogMessage(const Message &message) override;
+    Result<LogMessage> readErrorLogMessage() const override;
+    QString writeErrorLogMessage(const LogMessage &message) override;
 
     Result<IDaemon::Configuration> readDaemonConfiguration() const override;
     QString writeDaemonConfiguration(const IDaemon::Configuration &configuration) override;
@@ -27,7 +27,7 @@ public:
     struct TestData
     {
         bool isValid;
-        Result<Message> readErrorLogMessage;
+        Result<LogMessage> readErrorLogMessage;
         QString writeErrorLogMessage;
         bool writeErrorLogMessageCalled = false;
         Result<IDaemon::Configuration> readDaemonConfiguration;

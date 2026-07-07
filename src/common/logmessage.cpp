@@ -1,8 +1,8 @@
-#include "message.h"
+#include "logmessage.h"
 #include <QMap>
 #include <QJsonDocument>
 
-QString Message::typeToStr(Type type)
+QString LogMessage::typeToStr(Type type)
 {
     static const QMap<Type, QString> map = {
         { Info, "info" },
@@ -12,7 +12,7 @@ QString Message::typeToStr(Type type)
     return map.value(type);
 }
 
-Message::Type Message::strToType(const QString &str)
+LogMessage::Type LogMessage::strToType(const QString &str)
 {
     static const QMap<QString, Type> map = {
         { "info", Info },
@@ -22,24 +22,24 @@ Message::Type Message::strToType(const QString &str)
     return map.value(str, Unknown);
 }
 
-Message::Message(const QJsonObject &obj)
+LogMessage::LogMessage(const QJsonObject &obj)
 {
     message = obj["message"].toString();
     timestamp = QDateTime::fromString(obj["timestamp"].toString(), Qt::ISODateWithMs);
     type = strToType(obj["type"].toString());
 }
 
-bool Message::isValid() const
+bool LogMessage::isValid() const
 {
     return !message.isEmpty() && timestamp.isValid();
 }
 
-bool Message::operator==(const Message &other) const
+bool LogMessage::operator==(const LogMessage &other) const
 {
     return message == other.message && timestamp == other.timestamp;
 }
 
-Message::operator QJsonObject() const
+LogMessage::operator QJsonObject() const
 {
     return QJsonObject {
         { "message", message },
@@ -48,7 +48,7 @@ Message::operator QJsonObject() const
     };
 }
 
-QString Message::toString() const
+QString LogMessage::toString() const
 {
     return QJsonDocument(operator QJsonObject()).toJson(QJsonDocument::Compact);
 }

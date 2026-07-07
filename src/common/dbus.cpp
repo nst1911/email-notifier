@@ -1,7 +1,7 @@
 #include "dbus.h"
 #include <QtDBus/QtDBus>
 
-QDBusArgument &operator<<(QDBusArgument &argument, const Message &message)
+QDBusArgument &operator<<(QDBusArgument &argument, const LogMessage &message)
 {
     argument.beginStructure();
     argument
@@ -74,7 +74,7 @@ QDBusArgument &operator<<(QDBusArgument &argument, const Result<QStringList> &re
     return argument;
 }
 
-const QDBusArgument &operator>>(const QDBusArgument &argument, Message &message)
+const QDBusArgument &operator>>(const QDBusArgument &argument, LogMessage &message)
 {
     int type = 0;
 
@@ -85,7 +85,7 @@ const QDBusArgument &operator>>(const QDBusArgument &argument, Message &message)
         >> type;
     argument.endStructure();
 
-    message.type = static_cast<Message::Type>(type);
+    message.type = static_cast<LogMessage::Type>(type);
 
     return argument;
 }

@@ -131,8 +131,8 @@ Result<IDaemon::Status> Daemon::status() const
         config = configResult.data();
     }
 
-    Message lastError;
-    Result<Message> lastErrorResult = m_storage->readErrorLogMessage();
+    LogMessage lastError;
+    Result<LogMessage> lastErrorResult = m_storage->readErrorLogMessage();
     if (!lastErrorResult.success())
     {
         errors.append(c_readFromStorageFailedErrorMsg.arg("lastError", lastErrorResult.errorMessage()));
@@ -496,10 +496,10 @@ void Daemon::writeErrorLogMessage(const QString &funcName, const QString &messag
         return;
     }
 
-    Message msg;
+    LogMessage msg;
     msg.message = formattedMsg;
     msg.timestamp = QDateTime::currentDateTime();
-    msg.type = Message::Error;
+    msg.type = LogMessage::Error;
 
     if (QString result = m_storage->writeErrorLogMessage(msg); !result.isEmpty())
     {

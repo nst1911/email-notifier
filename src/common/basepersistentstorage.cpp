@@ -31,19 +31,19 @@ bool BasePersistentStorage::isValid() const
     return true;
 }
 
-Result<Message> BasePersistentStorage::readErrorLogMessage() const
+Result<LogMessage> BasePersistentStorage::readErrorLogMessage() const
 {
     Result<QJsonObject> readJsonObjResult = JsonHelper::readObject(errorLogMessageFilePath());
     if (!readJsonObjResult.success())
     {
-        return Result<Message>::error(readJsonObjResult.errorMessage());
+        return Result<LogMessage>::error(readJsonObjResult.errorMessage());
     }
-    return Result<Message>::success(readJsonObjResult.data());
+    return Result<LogMessage>::success(readJsonObjResult.data());
 }
 
-QString BasePersistentStorage::writeErrorLogMessage(const Message &message)
+QString BasePersistentStorage::writeErrorLogMessage(const LogMessage &message)
 {
-    if (message.type != Message::Error)
+    if (message.type != LogMessage::Error)
     {
         return "Log message type is not Error";
     }

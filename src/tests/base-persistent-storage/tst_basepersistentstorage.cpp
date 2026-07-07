@@ -87,7 +87,7 @@ void BasePersistentStorageQtTest::readErrorLogMessage()
     JsonHelper::writeObject(QJsonObject(Examples::validErrorLogMessage()), storage.errorLogMessageFilePath());
 
     // Act
-    Result<Message> result = storage.readErrorLogMessage();
+    Result<LogMessage> result = storage.readErrorLogMessage();
 
     // Assert
     QVERIFY(result.success());
@@ -101,7 +101,7 @@ void BasePersistentStorageQtTest::readErrorLogMessageInvalidFile()
     deleteTestDir();
 
     // Act
-    Result<Message> result = storage.readErrorLogMessage();
+    Result<LogMessage> result = storage.readErrorLogMessage();
 
     // Assert
     QVERIFY(!result.success());
@@ -109,7 +109,7 @@ void BasePersistentStorageQtTest::readErrorLogMessageInvalidFile()
 
 void BasePersistentStorageQtTest::writeErrorLogMessage_data()
 {
-    QTest::addColumn<Message>("message");
+    QTest::addColumn<LogMessage>("message");
     QTest::addColumn<bool>("expectedResult");
     QTest::addColumn<QJsonObject>("expectedJsonFileContents");
 
@@ -118,8 +118,8 @@ void BasePersistentStorageQtTest::writeErrorLogMessage_data()
     }
 
     {
-        Message message = Examples::validErrorLogMessage();
-        message.type = Message::Unknown;
+        LogMessage message = Examples::validErrorLogMessage();
+        message.type = LogMessage::Unknown;
 
         QTest::newRow("Invalid message type") << message << false << QJsonObject();
     }
@@ -128,7 +128,7 @@ void BasePersistentStorageQtTest::writeErrorLogMessage_data()
 void BasePersistentStorageQtTest::writeErrorLogMessage()
 {
     // Assign
-    QFETCH(Message, message);
+    QFETCH(LogMessage, message);
     QFETCH(bool, expectedResult);
     QFETCH(QJsonObject, expectedJsonFileContents);
 

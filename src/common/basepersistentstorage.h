@@ -16,8 +16,8 @@ public:
 
     bool isValid() const override;
 
-    Result<Message> readErrorLogMessage() const override;
-    QString writeErrorLogMessage(const Message &message) override;
+    Result<LogMessage> readErrorLogMessage() const override;
+    QString writeErrorLogMessage(const LogMessage &message) override;
 
     Result<IDaemon::Configuration> readDaemonConfiguration() const override;
     QString writeDaemonConfiguration(const IDaemon::Configuration &configuration) override;

@@ -34,8 +34,8 @@ add_library(${PROJECT_NAME} STATIC
     jsonhelper.cpp
     jsonhelper.h
     log.h
-    message.cpp
-    message.h
+    logmessage.cpp
+    logmessage.h
     notification.cpp
     notification.h
     persistentstorage.cpp
