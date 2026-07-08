@@ -13,14 +13,14 @@ public:
     bool isValid() const override;
 
     Result<QStringList> fetchMailboxes(const Configuration &config) override;
-    Result<LastMessageUIDs> fetchLastMessageUIDs(const Configuration &config, const QStringList &mailboxes) override;
+    Result<MessageInfoMap> fetchLastMessageInfo(const Configuration &config, const QStringList &mailboxes) override;
 
     struct TestData
     {
         bool isValid;
         Configuration configuration;
         Result<QStringList> fetchMailboxes;
-        QQueue<Result<LastMessageUIDs>> fetchLastMessageUIDsQueue;
+        QQueue<Result<MessageInfoMap>> fetchLastMessageInfoQueue;
     } m_testData;
 };
 

@@ -33,6 +33,7 @@ int main(int argc, char *argv[])
 #else
     IMAPClient mailClient;
 #endif
+
     PersistentStorage storage;
     NotificationManager notificationMngr;
 

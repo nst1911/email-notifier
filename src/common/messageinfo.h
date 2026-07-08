@@ -10,14 +10,18 @@ struct MessageInfo
     bool seen = false;
 
     MessageInfo() = default;
+    MessageInfo(quint64 uid, bool seen);
     MessageInfo(const QJsonObject &obj);
 
     bool operator==(const MessageInfo &other) const;
+    bool operator!=(const MessageInfo &other) const;
     explicit operator QJsonObject() const;
 
     QString toString() const;
 };
 
-typedef QMap<QString, MessageInfo> MessageInfoMap;
+QDebug operator<<(QDebug debug, const MessageInfo& type);
+
+typedef QMap<QString, MessageInfo> MessageInfoMap; // key is a mailbox
 
 Q_DECLARE_METATYPE(MessageInfo);

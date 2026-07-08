@@ -1,15 +1,28 @@
 #include "messageinfo.h"
 #include <QJsonDocument>
 
-MessageInfo::MessageInfo(const QJsonObject &obj)
+MessageInfo::MessageInfo(quint64 uid, bool seen)
+    : uid(uid),
+      seen(seen)
 {
-    uid = obj["uid"].toString().toULongLong();
-    seen = obj["seen"].toBool();
+
+}
+
+MessageInfo::MessageInfo(const QJsonObject &obj)
+    : uid(obj["uid"].toString().toULongLong()),
+      seen(obj["seen"].toBool())
+{
+
 }
 
 bool MessageInfo::operator==(const MessageInfo &other) const
 {
     return uid == other.uid && seen == other.seen;
+}
+
+bool MessageInfo::operator!=(const MessageInfo &other) const
+{
+    return !operator==(other);
 }
 
 MessageInfo::operator QJsonObject() const
@@ -20,4 +33,11 @@ MessageInfo::operator QJsonObject() const
 QString MessageInfo::toString() const
 {
     return QJsonDocument(operator QJsonObject()).toJson(QJsonDocument::Compact);
+}
+
+QDebug operator<<(QDebug debug, const MessageInfo& info)
+{
+    QDebugStateSaver saver(debug);
+    debug.nospace() << info.toString();
+    return debug;
 }

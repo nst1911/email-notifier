@@ -16,7 +16,7 @@ IMailClient::Configuration validMailClientConfig()
 {
     IMailClient::Configuration config;
     config.host = "imap.yandex.ru";
-    config.port = 67;
+    config.port = 993;
     config.login = "nst1911@yandex.ru";
     config.password = "password123fffff";
     return config;
@@ -31,16 +31,16 @@ IDaemon::Configuration validDaemonConfig()
     return config;
 }
 
-LastMessageUIDs validLastMessageUIDs()
+MessageInfoMap validLastMessageInfo()
 {
-    LastMessageUIDs lastMessageUIDs;
+    MessageInfoMap messageInfoMap;
     int i = 0;
     for (const QString &mailbox : validMailboxes())
     {
-        lastMessageUIDs[mailbox] = i + 1;
+        messageInfoMap[mailbox] = MessageInfo(i + 1, false);
         i++;
     }
-    return lastMessageUIDs;
+    return messageInfoMap;
 }
 
 LogMessage validErrorLogMessage()

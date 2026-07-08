@@ -41,16 +41,16 @@ QString MockPersistentStorage::writeDaemonConfiguration(const IDaemon::Configura
     return isValid() ? m_testData.writeDaemonConfiguration : c_isValidErrMsg;
 }
 
-Result<LastMessageUIDs> MockPersistentStorage::readLastMessageUIDs() const
+Result<MessageInfoMap> MockPersistentStorage::readLastMessageInfo() const
 {
-    return isValid() ? m_testData.readLastMessageUIDs : Result<LastMessageUIDs>::error(c_isValidErrMsg);
+    return isValid() ? m_testData.readLastMessageInfo : Result<MessageInfoMap>::error(c_isValidErrMsg);
 }
 
-QString MockPersistentStorage::writeLastMessageUIDs(const LastMessageUIDs &uids)
+QString MockPersistentStorage::writeLastMessageInfo(const MessageInfoMap &messageInfoMap)
 {
-    Q_UNUSED(uids);
-    m_writeLastMessageUIDsCalled = true;
-    return isValid() ? m_testData.writeLastMessageUIDs : c_isValidErrMsg;
+    Q_UNUSED(messageInfoMap);
+    m_writeLastMessageInfoCalled = true;
+    return isValid() ? m_testData.writeLastMessageInfo : c_isValidErrMsg;
 }
 
 Result<QString> MockPersistentStorage::readPassword(IDaemon::PasswordType type) const

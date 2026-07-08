@@ -18,8 +18,8 @@ public:
     Result<IDaemon::Configuration> readDaemonConfiguration() const override;
     QString writeDaemonConfiguration(const IDaemon::Configuration &configuration) override;
 
-    Result<LastMessageUIDs> readLastMessageUIDs() const override;
-    QString writeLastMessageUIDs(const LastMessageUIDs &uids) override;
+    Result<MessageInfoMap> readLastMessageInfo() const override;
+    QString writeLastMessageInfo(const MessageInfoMap &messageInfoMap) override;
 
     Result<QString> readPassword(IDaemon::PasswordType type) const override;
     QString writePassword(IDaemon::PasswordType type, const QString &password) override;
@@ -32,14 +32,14 @@ public:
         bool writeErrorLogMessageCalled = false;
         Result<IDaemon::Configuration> readDaemonConfiguration;
         QString writeDaemonConfiguration;
-        Result<LastMessageUIDs> readLastMessageUIDs;
-        QString writeLastMessageUIDs;
+        Result<MessageInfoMap> readLastMessageInfo;
+        QString writeLastMessageInfo;
         Result<QString> readPassword;
         QString writePassword;
     } m_testData;
 
     bool m_writeDaemonConfigurationCalled = false;
-    bool m_writeLastMessageUIDsCalled = false;
+    bool m_writeLastMessageInfoCalled = false;
 };
 
 Q_DECLARE_METATYPE(MockPersistentStorage::TestData);

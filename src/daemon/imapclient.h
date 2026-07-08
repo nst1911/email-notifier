@@ -2,6 +2,7 @@
 
 #include "basemailclient.h"
 #include <curl/curl.h>
+#include "messageinfo.h"
 
 class IMAPClient : public BaseMailClient
 {
@@ -14,11 +15,11 @@ public:
     bool isValid() const override;
 
     Result<QStringList> fetchMailboxes(const Configuration &config) override;
-    Result<LastMessageUIDs> fetchLastMessageUIDs(const Configuration &config, const QStringList &mailboxes) override;
+    Result<MessageInfoMap> fetchLastMessageInfo(const Configuration &config, const QStringList &mailboxes) override;
 
 protected:
     Result<QStringList> fetchMailboxesImpl(const Configuration &config) override;
-    Result<quint64> fetchLastMessageUID(const Configuration &config, const QString &mailbox) override;
+    Result<MessageInfo> fetchLastMessageInfoFromMailbox(const Configuration &config, const QString &mailboxes) override;
 
 private:
     static QString buildIMAPUrl(const Configuration &config);

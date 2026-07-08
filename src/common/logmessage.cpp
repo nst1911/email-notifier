@@ -23,10 +23,11 @@ LogMessage::Type LogMessage::strToType(const QString &str)
 }
 
 LogMessage::LogMessage(const QJsonObject &obj)
+    : message(obj["message"].toString()),
+      timestamp(QDateTime::fromString(obj["timestamp"].toString(), Qt::ISODateWithMs)),
+      type(strToType(obj["type"].toString()))
 {
-    message = obj["message"].toString();
-    timestamp = QDateTime::fromString(obj["timestamp"].toString(), Qt::ISODateWithMs);
-    type = strToType(obj["type"].toString());
+
 }
 
 bool LogMessage::isValid() const

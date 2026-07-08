@@ -5,7 +5,7 @@ set(QT_CREATOR_SKIP_MAINTENANCE_TOOL_PROVIDER ON)
 set(PROGRAM_NAME email-notifier)
 project(${PROGRAM_NAME})
 
-set(PROGRAM_VERSION 0.1)
+set(PROGRAM_VERSION 0.2)
 set(AUTHOR_EMAIL nst1911@yandex.ru)
 set(DAEMON_NAME email-notifier-daemon)
 set(CLI_NAME ${PROGRAM_NAME})

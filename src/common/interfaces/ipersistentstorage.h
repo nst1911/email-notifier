@@ -21,6 +21,6 @@ public:
     virtual Result<QString> readPassword(IDaemon::PasswordType type) const = 0;
     virtual QString writePassword(IDaemon::PasswordType type, const QString &password) = 0;
 
-    virtual Result<LastMessageUIDs> readLastMessageUIDs() const = 0;
-    virtual QString writeLastMessageUIDs(const LastMessageUIDs &uids) = 0;
+    virtual Result<MessageInfoMap> readLastMessageInfo() const = 0;
+    virtual QString writeLastMessageInfo(const MessageInfoMap &messageInfoMap) = 0;
 };

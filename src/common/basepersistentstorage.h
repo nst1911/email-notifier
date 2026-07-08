@@ -11,7 +11,7 @@ public:
     BasePersistentStorage(QObject *parent = nullptr);
 
     QString configFilePath() const;
-    QString lastMessageUIDsFilePath() const;
+    QString lastMessageInfoFilePath() const;
     QString errorLogMessageFilePath() const;
 
     bool isValid() const override;
@@ -22,8 +22,8 @@ public:
     Result<IDaemon::Configuration> readDaemonConfiguration() const override;
     QString writeDaemonConfiguration(const IDaemon::Configuration &configuration) override;
 
-    Result<LastMessageUIDs> readLastMessageUIDs() const override;
-    QString writeLastMessageUIDs(const LastMessageUIDs &uids) override;
+    Result<MessageInfoMap> readLastMessageInfo() const override;
+    QString writeLastMessageInfo(const MessageInfoMap &messageInfoMap) override;
 
 protected:
     BasePersistentStorage(const QString &settingsDir, QObject *parent = nullptr);
