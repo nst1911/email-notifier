@@ -10,8 +10,8 @@ The package consists of:
 ## Installation
 
 ```
-chmod +x email-notifier_0.1_install.run 
-./email-notifier_0.1_install.run
+chmod +x email-notifier_<version>_install.run 
+./email-notifier_<version>_install.run
 ```
 
 ## Usage
