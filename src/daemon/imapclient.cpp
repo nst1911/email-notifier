@@ -47,11 +47,69 @@ Result<QStringList> IMAPClient::fetchMailboxes(const Configuration &config)
         : Result<QStringList>::error(m_curlGlobalInitError);
 }
 
-Result<LastMessageUIDs> IMAPClient::fetchLastMessageUIDs(const Configuration &config, const QStringList &mailboxes)
+Result<MessageInfoMap> IMAPClient::fetchLastMessageInfo(const Configuration &config, const QStringList &mailboxes)
 {
     return m_curlGlobalInitError.isEmpty()
-        ? BaseMailClient::fetchLastMessageUIDs(config, mailboxes)
-        : Result<LastMessageUIDs>::error(m_curlGlobalInitError);
+        ? BaseMailClient::fetchLastMessageInfo(config, mailboxes)
+        : Result<MessageInfoMap>::error(m_curlGlobalInitError);
+}
+
+Result<MessageInfo> IMAPClient::fetchLastMessageInfoFromMailbox(const Configuration &config, const QString &mailbox)
+{
+    CurlWrapper curl;
+    if (!curl.ptr)
+    {
+        return Result<MessageInfo>::error("curl_easy_init failed");
+    }
+
+    curl_easy_setopt(curl.ptr, CURLOPT_USERNAME, qUtf8Printable(config.login));
+    curl_easy_setopt(curl.ptr, CURLOPT_PASSWORD, qUtf8Printable(config.password));
+
+    QString url = QString("%1/%2").arg(buildIMAPUrl(config), mailbox);
+    curl_easy_setopt(curl.ptr, CURLOPT_URL, qUtf8Printable(url));
+
+    // Have to use a very large number (999999999) instead of just *
+    // because Exchange's IMAP implementation doesn't support the * wildcard in SEARCH command
+    QString customRequest = "UID FETCH 999999999:* (UID FLAGS)";
+    curl_easy_setopt(curl.ptr, CURLOPT_CUSTOMREQUEST, qUtf8Printable(customRequest));
+
+    QString responseData;
+    curl_easy_setopt(curl.ptr, CURLOPT_WRITEDATA, &responseData);
+
+    CURLcode res = curl_easy_perform(curl.ptr);
+    if (res == CURLE_OK)
+    {
+        curlLogSuccess(customRequest, url);
+        qDebug() << "responseData" << responseData; // qDebug instead logDebug to avoid printing \r\n to logs
+    }
+    else
+    {
+        return Result<MessageInfo>::error(curlLogFailed(customRequest, url, res));
+    }
+
+    MessageInfo messageInfo;
+
+    // Parse message UID
+    static const QRegularExpression searchRegex("UID\\s+(\\d+)");
+    QRegularExpressionMatch match = searchRegex.match(responseData);
+    if (match.hasMatch())
+    {
+        QStringList uidStrings = match.captured(1).split(' ', Qt::SkipEmptyParts);
+        if (!uidStrings.isEmpty())
+        {
+            bool ok = false;
+            messageInfo.uid = uidStrings.last().toULongLong(&ok);
+            if (!ok)
+            {
+                return Result<MessageInfo>::error(QString("%1 response parsing error").arg(customRequest));
+            }
+        }
+    }
+
+    // Parse Seen/Unseen state
+    messageInfo.seen = responseData.contains("\\Seen");
+
+    return Result<MessageInfo>::success(messageInfo);
 }
 
 Result<QStringList> IMAPClient::fetchMailboxesImpl(const Configuration &config)
@@ -105,57 +163,6 @@ Result<QStringList> IMAPClient::fetchMailboxesImpl(const Configuration &config)
     }
 
     return Result<QStringList>::success(mailboxes);
-}
-
-Result<quint64> IMAPClient::fetchLastMessageUID(const Configuration &config, const QString &mailbox)
-{
-    CurlWrapper curl;
-    if (!curl.ptr)
-    {
-        return Result<quint64>::error("curl_easy_init failed");
-    }
-
-    curl_easy_setopt(curl.ptr, CURLOPT_USERNAME, qUtf8Printable(config.login));
-    curl_easy_setopt(curl.ptr, CURLOPT_PASSWORD, qUtf8Printable(config.password));
-
-    QString url = QString("%1/%2").arg(buildIMAPUrl(config), mailbox);
-    curl_easy_setopt(curl.ptr, CURLOPT_URL, qUtf8Printable(url));
-
-    // Have to use a very large number (999999999) instead of UID SEARCH *
-    // because Exchange's IMAP implementation doesn't support the * wildcard in SEARCH command
-    QString customRequest = "UID SEARCH 999999999:*";
-    curl_easy_setopt(curl.ptr, CURLOPT_CUSTOMREQUEST, qUtf8Printable(customRequest));
-
-    QString responseData;
-    curl_easy_setopt(curl.ptr, CURLOPT_WRITEDATA, &responseData);
-
-    CURLcode res = curl_easy_perform(curl.ptr);
-    if (res == CURLE_OK)
-    {
-        curlLogSuccess(customRequest, url);
-        qDebug() << "responseData" << responseData; // qDebug instead logDebug to avoid printing \r\n to logs
-    }
-    else
-    {
-        return Result<quint64>::error(curlLogFailed(customRequest, url, res));
-    }
-
-    static const QRegularExpression searchRegex("SEARCH\\s+(\\d+)");
-    QRegularExpressionMatch match = searchRegex.match(responseData);
-
-    if (match.hasMatch())
-    {
-        QStringList uidStrings = match.captured(1).split(' ', Qt::SkipEmptyParts);
-        if (!uidStrings.isEmpty())
-        {
-            bool ok = false;
-            quint64 uid = uidStrings.last().toULongLong(&ok);
-            return ok ? Result<quint64>::success(uid) : Result<quint64>::error(QString("%1 response parsing error").arg(customRequest));
-        }
-    }
-
-    // No messages in mailbox
-    return Result<quint64>::success(0);
 }
 
 QString IMAPClient::buildIMAPUrl(const Configuration &config)

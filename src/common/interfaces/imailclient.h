@@ -1,12 +1,11 @@
 #pragma once
 
 #include "imodule.h"
+#include "messageinfo.h"
 #include "result.h"
+#include <QJsonObject>
 #include <QMap>
 #include <QStringList>
-#include <QJsonObject>
-
-typedef QMap<QString, quint64> LastMessageUIDs;
 
 class IMailClient : public IModule
 {
@@ -38,7 +37,7 @@ public:
     virtual ~IMailClient() {}
 
     virtual Result<QStringList> fetchMailboxes(const Configuration &config) = 0;
-    virtual Result<LastMessageUIDs> fetchLastMessageUIDs(const Configuration &config, const QStringList &mailboxes) = 0;
+    virtual Result<MessageInfoMap> fetchLastMessageInfo(const Configuration &config, const QStringList &mailboxes) = 0;
 };
 
 Q_DECLARE_METATYPE(IMailClient::Configuration);

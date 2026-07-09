@@ -9,7 +9,7 @@ namespace
 {
 const QString c_settingsDefaultDir = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation) + "/" + PROGRAM_NAME_STRING_LITERAL;
 constexpr const char *c_configFileName = "configuration.json";
-constexpr const char *c_lastMessageUIDsFileName = "lastmessageuids.json";
+constexpr const char *c_lastMessageInfoFileName = "lastmessageinfo.json";
 constexpr const char *c_errorLogMessageFileName = "error.json";
 }
 
@@ -31,19 +31,19 @@ bool BasePersistentStorage::isValid() const
     return true;
 }
 
-Result<Message> BasePersistentStorage::readErrorLogMessage() const
+Result<LogMessage> BasePersistentStorage::readErrorLogMessage() const
 {
     Result<QJsonObject> readJsonObjResult = JsonHelper::readObject(errorLogMessageFilePath());
     if (!readJsonObjResult.success())
     {
-        return Result<Message>::error(readJsonObjResult.errorMessage());
+        return Result<LogMessage>::error(readJsonObjResult.errorMessage());
     }
-    return Result<Message>::success(readJsonObjResult.data());
+    return Result<LogMessage>::success(readJsonObjResult.data());
 }
 
-QString BasePersistentStorage::writeErrorLogMessage(const Message &message)
+QString BasePersistentStorage::writeErrorLogMessage(const LogMessage &message)
 {
-    if (message.type != Message::Error)
+    if (message.type != LogMessage::Error)
     {
         return "Log message type is not Error";
     }
@@ -65,38 +65,33 @@ QString BasePersistentStorage::writeDaemonConfiguration(const IDaemon::Configura
     return JsonHelper::writeObject(QJsonObject(configuration), configFilePath());
 }
 
-Result<LastMessageUIDs> BasePersistentStorage::readLastMessageUIDs() const
+Result<MessageInfoMap> BasePersistentStorage::readLastMessageInfo() const
 {
-    Result<QJsonObject> readJsonObjResult = JsonHelper::readObject(lastMessageUIDsFilePath());
+    Result<QJsonObject> readJsonObjResult = JsonHelper::readObject(lastMessageInfoFilePath());
     if (!readJsonObjResult.success())
     {
-        return Result<LastMessageUIDs>::error(readJsonObjResult.errorMessage());
+        return Result<MessageInfoMap>::error(readJsonObjResult.errorMessage());
     }
 
     QJsonObject jsonObj = readJsonObjResult.data();
-    LastMessageUIDs uids;
+    MessageInfoMap messageInfoMap;
     bool ok = false;
 
     for (const QString &mailbox : jsonObj.keys())
     {
-        quint64 uid = jsonObj.value(mailbox).toString().toULongLong(&ok);
-        if (!ok)
-        {
-            return Result<LastMessageUIDs>::error("Error while converting UID to quint64");
-        }
-        uids.insert(mailbox, uid);
+        messageInfoMap.insert(mailbox, MessageInfo(jsonObj[mailbox].toObject()));
     }
-    return Result<LastMessageUIDs>::success(uids);
+    return Result<MessageInfoMap>::success(messageInfoMap);
 }
 
-QString BasePersistentStorage::writeLastMessageUIDs(const LastMessageUIDs &uids)
+QString BasePersistentStorage::writeLastMessageInfo(const MessageInfoMap &messageInfoMap)
 {
     QJsonObject jsonObj;
-    for (auto it = uids.cbegin(); it != uids.cend(); ++it)
+    for (auto it = messageInfoMap.cbegin(); it != messageInfoMap.cend(); ++it)
     {
-        jsonObj.insert(it.key(), QString::number(it.value()));
+        jsonObj.insert(it.key(), QJsonObject(it.value()));
     }
-    return JsonHelper::writeObject(jsonObj, lastMessageUIDsFilePath());
+    return JsonHelper::writeObject(jsonObj, lastMessageInfoFilePath());
 }
 
 BasePersistentStorage::BasePersistentStorage(const QString &settingsDir, QObject *parent)
@@ -129,7 +124,7 @@ QString BasePersistentStorage::settingsFilePath(const QString &fileName) const
 
 QStringList BasePersistentStorage::settingsFilePathList() const
 {
-    return { configFilePath(), lastMessageUIDsFilePath(), errorLogMessageFilePath() };
+    return { configFilePath(), lastMessageInfoFilePath(), errorLogMessageFilePath() };
 }
 
 QString BasePersistentStorage::configFilePath() const
@@ -137,9 +132,9 @@ QString BasePersistentStorage::configFilePath() const
     return settingsFilePath(c_configFileName);
 }
 
-QString BasePersistentStorage::lastMessageUIDsFilePath() const
+QString BasePersistentStorage::lastMessageInfoFilePath() const
 {
-    return settingsFilePath(c_lastMessageUIDsFileName);
+    return settingsFilePath(c_lastMessageInfoFileName);
 }
 
 QString BasePersistentStorage::errorLogMessageFilePath() const

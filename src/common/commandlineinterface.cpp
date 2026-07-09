@@ -22,7 +22,7 @@ constexpr const char *c_stopCmd = "stop";
 constexpr const char *c_statusCmd = "status";
 constexpr const char *c_fetchMailboxesCmd = "fetch-mailboxes";
 
-const QString c_parseErrorMsg = "Can't parse %1 from arguments.";
+const QString c_parseErrorMsg = "Can't parse %1 from arguments";
 
 const QStringList c_defaultMailboxes = { "INBOX" };
 constexpr const quint32 c_minMailRequestIntervalMsg = 60 * 1000; // 1 minute
@@ -114,7 +114,7 @@ CommandLineInterface::ExitCode CommandLineInterface::process(const QStringList &
     switch (isDaemonServiceActive())
     {
     case Timeout:
-        logCritical() << QString("Unexpected error: Checking if daemon service \"%1\" is alive timeout.").arg(SERVICE_NAME_STRING_LITERAL);
+        logCritical() << QString("Unexpected error: Checking if daemon service \"%1\" is alive timeout").arg(SERVICE_NAME_STRING_LITERAL);
         return DaemonError;
     case Inactive:
         logCritical() << QString("Daemon service \"%1\" is inactive. You need to start the service by calling").arg(SERVICE_NAME_STRING_LITERAL);
@@ -267,7 +267,7 @@ Result<IMailClient::Configuration> CommandLineInterface::parseMailClientConfig()
         return Result<IMailClient::Configuration>::error(c_parseErrorMsg.arg(c_loginOpt));
     }
 
-    logInfo() << "NOTE! You may be asked to enter your Linux account password. It needs to save your email account password to secure keyring.\n";
+    logInfo() << "NOTE! You may be asked to enter your Linux account password. It needs to save your email account password to secure keyring\n";
 
     Result<QString> passwordResult = m_passwordInputHandler->enterPassword();
     if (!passwordResult.success())
@@ -355,7 +355,7 @@ CommandLineInterface::ExitCode CommandLineInterface::executeSetupCmd()
         return DaemonError;
     }
 
-    logInfo() << "\nSettings have been applied successfully.";
+    logInfo() << "\nSettings have been applied successfully";
     return Success;
 }
 
@@ -368,7 +368,7 @@ CommandLineInterface::ExitCode CommandLineInterface::executeStartCmd()
         return DaemonError;
     }
 
-    logInfo() << "Monitoring has been started successfully.";
+    logInfo() << "Monitoring has been started successfully";
     return Success;
 }
 
@@ -381,7 +381,7 @@ CommandLineInterface::ExitCode CommandLineInterface::executeStopCmd()
         return DaemonError;
     }
 
-    logInfo() << "Monitoring has been stopped.";
+    logInfo() << "Monitoring has been stopped";
     return Success;
 }
 
@@ -417,9 +417,9 @@ CommandLineInterface::ExitCode CommandLineInterface::executeStatusCmd()
         "    %1"
     ).arg(statusResult.data().isMonitoringActivated ? "Activated" : "Not activated");
 
-    Message lastError = statusResult.data().lastError;
+    LogMessage lastError = statusResult.data().lastError;
     QString lastErrorMsg;
-    if (lastError.isValid() && lastError.type == Message::Error)
+    if (lastError.isValid() && lastError.type == LogMessage::Error)
     {
         lastErrorMsg = QString(
             "  [Last error message]\n"
@@ -468,7 +468,7 @@ CommandLineInterface::ExitCode CommandLineInterface::executeFetchMailboxesCmd()
     QStringList mailboxes = fetchMailboxesResult.data();
     if (mailboxes.isEmpty())
     {
-        logInfo() << "\nNo available mailboxes.";
+        logInfo() << "\nNo available mailboxes";
     }
     else
     {

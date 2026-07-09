@@ -1,11 +1,11 @@
 #include "imailclient.h"
 
 IMailClient::Configuration::Configuration(const QJsonObject &obj)
+    : host(obj["host"].toString()),
+      port(obj["port"].toString().toUShort()),
+      login(obj["login"].toString())
 {
-    // skip password intentionally to avoid its leakage
-    host = obj["host"].toString();
-    port = obj["port"].toString().toUShort();
-    login = obj["login"].toString();
+
 }
 
 bool IMailClient::Configuration::isValid() const

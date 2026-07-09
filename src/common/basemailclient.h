@@ -11,12 +11,9 @@ public:
     BaseMailClient(QObject *parent = nullptr);
 
     Result<QStringList> fetchMailboxes(const Configuration &config) override;
-    Result<LastMessageUIDs> fetchLastMessageUIDs(const Configuration &config, const QStringList &mailboxes) override;
+    Result<MessageInfoMap> fetchLastMessageInfo(const Configuration &config, const QStringList &mailboxes) override;
 
 protected:
     virtual Result<QStringList> fetchMailboxesImpl(const Configuration &config) = 0;
-    virtual Result<quint64> fetchLastMessageUID(const Configuration &config, const QString &mailboxes) = 0;
-
-private:
-    Configuration m_config;
+    virtual Result<MessageInfo> fetchLastMessageInfoFromMailbox(const Configuration &config, const QString &mailbox) = 0;
 };

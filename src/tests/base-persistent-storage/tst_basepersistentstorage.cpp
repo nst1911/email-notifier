@@ -29,14 +29,14 @@ private slots:
     void writeDaemonConfiguration();
     void writeConfigurationInvalidFile();
 
-    void readLastMessageUID();
-    void readLastMessageUIDInvalidFile();
+    void readLastMessageInfo();
+    void readLastMessageInfoInvalidFile();
 
-    void writeLastMessageUIDs();
-    void writeLastMessageUIDsInvalidFile();
+    void writeLastMessageInfo();
+    void writeLastMessageInfoInvalidFile();
 
 private:
-    QJsonObject lastMessageUIDsJsonObj(const LastMessageUIDs &uids) const;
+    QJsonObject lastMessageInfoJsonObj(const MessageInfoMap &messageInfoMap) const;
     void createTestDir();
     void deleteTestDir();
 
@@ -75,7 +75,7 @@ void BasePersistentStorageQtTest::createFilesIfNotExist()
 
     // Assert
     QVERIFY(QFile(storage.configFilePath()).exists());
-    QVERIFY(QFile(storage.lastMessageUIDsFilePath()).exists());
+    QVERIFY(QFile(storage.lastMessageInfoFilePath()).exists());
     QVERIFY(QFile(storage.errorLogMessageFilePath()).exists());
 }
 
@@ -87,7 +87,7 @@ void BasePersistentStorageQtTest::readErrorLogMessage()
     JsonHelper::writeObject(QJsonObject(Examples::validErrorLogMessage()), storage.errorLogMessageFilePath());
 
     // Act
-    Result<Message> result = storage.readErrorLogMessage();
+    Result<LogMessage> result = storage.readErrorLogMessage();
 
     // Assert
     QVERIFY(result.success());
@@ -101,7 +101,7 @@ void BasePersistentStorageQtTest::readErrorLogMessageInvalidFile()
     deleteTestDir();
 
     // Act
-    Result<Message> result = storage.readErrorLogMessage();
+    Result<LogMessage> result = storage.readErrorLogMessage();
 
     // Assert
     QVERIFY(!result.success());
@@ -109,7 +109,7 @@ void BasePersistentStorageQtTest::readErrorLogMessageInvalidFile()
 
 void BasePersistentStorageQtTest::writeErrorLogMessage_data()
 {
-    QTest::addColumn<Message>("message");
+    QTest::addColumn<LogMessage>("message");
     QTest::addColumn<bool>("expectedResult");
     QTest::addColumn<QJsonObject>("expectedJsonFileContents");
 
@@ -118,8 +118,8 @@ void BasePersistentStorageQtTest::writeErrorLogMessage_data()
     }
 
     {
-        Message message = Examples::validErrorLogMessage();
-        message.type = Message::Unknown;
+        LogMessage message = Examples::validErrorLogMessage();
+        message.type = LogMessage::Unknown;
 
         QTest::newRow("Invalid message type") << message << false << QJsonObject();
     }
@@ -128,7 +128,7 @@ void BasePersistentStorageQtTest::writeErrorLogMessage_data()
 void BasePersistentStorageQtTest::writeErrorLogMessage()
 {
     // Assign
-    QFETCH(Message, message);
+    QFETCH(LogMessage, message);
     QFETCH(bool, expectedResult);
     QFETCH(QJsonObject, expectedJsonFileContents);
 
@@ -221,77 +221,77 @@ void BasePersistentStorageQtTest::writeConfigurationInvalidFile()
     QVERIFY(!result.isEmpty());
 }
 
-void BasePersistentStorageQtTest::readLastMessageUID()
+void BasePersistentStorageQtTest::readLastMessageInfo()
 {
     // Assign
     TestBasePersistentStorage storage(c_testDir);
 
-    LastMessageUIDs uids = Examples::validLastMessageUIDs();
-    QJsonObject uidsJsonObj = lastMessageUIDsJsonObj(uids);
+    MessageInfoMap messageInfo = Examples::validLastMessageInfo();
+    QJsonObject messageInfoJsonObj = lastMessageInfoJsonObj(messageInfo);
 
-    Q_ASSERT(JsonHelper::writeObject(uidsJsonObj, storage.lastMessageUIDsFilePath()).isEmpty());
+    Q_ASSERT(JsonHelper::writeObject(messageInfoJsonObj, storage.lastMessageInfoFilePath()).isEmpty());
 
     // Act
-    Result<LastMessageUIDs> result = storage.readLastMessageUIDs();
+    Result<MessageInfoMap> result = storage.readLastMessageInfo();
 
     // Assert
     QVERIFY(result.success());
-    QCOMPARE(result.data(), uids);
+    QCOMPARE(result.data(), messageInfo);
 }
 
-void BasePersistentStorageQtTest::readLastMessageUIDInvalidFile()
+void BasePersistentStorageQtTest::readLastMessageInfoInvalidFile()
 {
     // Assign
     TestBasePersistentStorage storage(c_testDir);
     deleteTestDir();
 
     // Act
-    Result<LastMessageUIDs> result = storage.readLastMessageUIDs();
+    Result<MessageInfoMap> result = storage.readLastMessageInfo();
 
     // Assert
     QVERIFY(!result.success());
 }
 
-void BasePersistentStorageQtTest::writeLastMessageUIDs()
+void BasePersistentStorageQtTest::writeLastMessageInfo()
 {
     // Assign
     TestBasePersistentStorage storage(c_testDir);
 
-    LastMessageUIDs uids = Examples::validLastMessageUIDs();
-    QJsonObject uidsJsonObj = lastMessageUIDsJsonObj(uids);
+    MessageInfoMap messageInfo = Examples::validLastMessageInfo();
+    QJsonObject messageInfoJsonObj = lastMessageInfoJsonObj(messageInfo);
 
     // Act
-    QString result = storage.writeLastMessageUIDs(uids);
+    QString result = storage.writeLastMessageInfo(messageInfo);
 
     // Assert
     QVERIFY(result.isEmpty());
 
-    Result<QJsonObject> readResult = JsonHelper::readObject(storage.lastMessageUIDsFilePath());
+    Result<QJsonObject> readResult = JsonHelper::readObject(storage.lastMessageInfoFilePath());
     QVERIFY(readResult.success());
-    QCOMPARE(readResult.data(), uidsJsonObj);
+    QCOMPARE(readResult.data(), messageInfoJsonObj);
 }
 
-void BasePersistentStorageQtTest::writeLastMessageUIDsInvalidFile()
+void BasePersistentStorageQtTest::writeLastMessageInfoInvalidFile()
 {
     // Assign
     TestBasePersistentStorage storage(c_testDir);
     deleteTestDir();
 
     // Act
-    QString result = storage.writeLastMessageUIDs(Examples::validLastMessageUIDs());
+    QString result = storage.writeLastMessageInfo(Examples::validLastMessageInfo());
 
     // Assert
     QVERIFY(!result.isEmpty());
 }
 
-QJsonObject BasePersistentStorageQtTest::lastMessageUIDsJsonObj(const LastMessageUIDs &uids) const
+QJsonObject BasePersistentStorageQtTest::lastMessageInfoJsonObj(const MessageInfoMap &messageInfoMap) const
 {
-    QJsonObject uidsJsonObj;
-    for (auto it = uids.cbegin(); it != uids.cend(); ++it)
+    QJsonObject jsonObj;
+    for (auto it = messageInfoMap.cbegin(); it != messageInfoMap.cend(); ++it)
     {
-        uidsJsonObj.insert(it.key(), QString::number(it.value()));
+        jsonObj.insert(it.key(), QJsonObject(it.value()));
     }
-    return uidsJsonObj;
+    return jsonObj;
 }
 
 void BasePersistentStorageQtTest::createTestDir()

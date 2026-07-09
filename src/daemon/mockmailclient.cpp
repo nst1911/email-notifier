@@ -15,46 +15,78 @@ void writeTestDataExample()
 {
     // Generate test data like this:
     // {
-    //     "fetchLastMessageUID": {
+    //     "fetchLastMessageInfo": {
     //         "INBOX": [
-    //             1,
-    //             2,
-    //             3,
-    //             -1  <= fetchLastMessageUID would return error
+    //             {
+    //                 "seen": false,
+    //                 "uid": "1"
+    //             },
+    //             {
+    //                 "seen": false,
+    //                 "uid": "2"
+    //             },
+    //             {
+    //                 "seen": false,
+    //                 "uid": "3"
+    //             },
+    //             {
+    //                 <= would return error
+    //             }
     //         ],
     //         "INBOX1": [
-    //             1,
-    //             2,
-    //             3,
-    //             -1
+    //             {
+    //                 "seen": false,
+    //                 "uid": "1"
+    //             },
+    //             {
+    //                 "seen": false,
+    //                 "uid": "2"
+    //             },
+    //             {
+    //                 "seen": false,
+    //                 "uid": "3"
+    //             },
+    //             {
+    //                 <= would return error
+    //             }
     //         ],
     //         "INBOX2": [
-    //             1,
-    //             2,
-    //             3,
-    //             -1
+    //             {
+    //                 "seen": false,
+    //                 "uid": "1"
+    //             },
+    //             {
+    //                 "seen": false,
+    //                 "uid": "2"
+    //             },
+    //             {
+    //                 "seen": false,
+    //                 "uid": "3"
+    //             },
+    //             {
+    //                 <= would return error
+    //             }
     //         ]
     //     },
     //     "fetchMailboxes": [
-    //         {
-    //             "mailboxes": [
-    //                 "INBOX",
-    //                 "INBOX1",
-    //                 "INBOX2"
-    //             ],
-    //             "success": true
-    //         },
-    //         {
-    //             "mailboxes": [
-    //                 "INBOX",
-    //                 "INBOX1",
-    //                 "INBOX2"
-    //             ],
-    //             "success": false <= fetchMailboxes would return error
-    //         }
+    //      {
+    //          "mailboxes": [
+    //              "INBOX",
+    //              "INBOX1",
+    //              "INBOX2"
+    //          ],
+    //          "success": true
+    //      },
+    //      {
+    //          "mailboxes": [
+    //              "INBOX",
+    //              "INBOX1",
+    //              "INBOX2"
+    //          ],
+    //          "success": false <= would return error
+    //      }
     //     ]
     // }
-
 
     const QStringList mailboxesExample = { "INBOX", "INBOX1", "INBOX2" };
 
@@ -81,19 +113,19 @@ void writeTestDataExample()
 
     rootObj["fetchMailboxes"] = fetchMailboxesArr;
 
-    // fetchLastMessageUID
-    QJsonObject fetchLastMessageUIDObj;
+    // fetchLastMessageInfo
+    QJsonObject fetchLastMessageInfoObj;
     for (const QString &mailbox : mailboxesExample)
     {
-        QJsonArray uidsJsonArr;
+        QJsonArray lastMessageInfoArr;
         for (int i = 0; i < 3; ++i)
         {
-            uidsJsonArr.append(i + 1);
+            lastMessageInfoArr.append(QJsonObject(MessageInfo(i+1, false)));
         }
-        uidsJsonArr.append(-1);
-        fetchLastMessageUIDObj[mailbox] = uidsJsonArr;
+        lastMessageInfoArr.append(QJsonObject()); // for error case
+        fetchLastMessageInfoObj[mailbox] = lastMessageInfoArr;
     }
-    rootObj["fetchLastMessageUID"] = fetchLastMessageUIDObj;
+    rootObj["fetchLastMessageInfo"] = fetchLastMessageInfoObj;
 
     // Write to file
     if (QString error = JsonHelper::writeObject(rootObj, c_testDataFile); !error.isEmpty())
@@ -143,24 +175,24 @@ Result<QStringList> MockMailClient::fetchMailboxesImpl(const Configuration &conf
     return data;
 }
 
-Result<quint64> MockMailClient::fetchLastMessageUID(const Configuration &config, const QString &mailbox)
+Result<MessageInfo> MockMailClient::fetchLastMessageInfoFromMailbox(const Configuration &config, const QString &mailbox)
 {
     Q_UNUSED(config);
 
-    if (!m_uids.contains(mailbox))
+    if (!m_messageInfos.contains(mailbox))
     {
-        return Result<quint64>::error("Mailbox not found");
+        return Result<MessageInfo>::error("Mailbox not found");
     }
 
-    QList<Result<quint64>> uidList = m_uids[mailbox];
-    if (uidList.isEmpty())
+    QList<Result<MessageInfo>> messageInfoList = m_messageInfos[mailbox];
+    if (messageInfoList.isEmpty())
     {
-        return Result<quint64>::error("No UID data for mailbox");
+        return Result<MessageInfo>::error("No message info for mailbox");
     }
 
-    int& index = m_currentUidsIndex[mailbox];
-    Result<quint64> result = uidList[index];
-    index = (index + 1) % uidList.size();
+    int& index = m_currentMessageInfoIndex[mailbox];
+    Result<MessageInfo> result = messageInfoList[index];
+    index = (index + 1) % messageInfoList.size();
     return result;
 }
 
@@ -194,15 +226,19 @@ void MockMailClient::readTestData()
         m_mailboxes.append(Result<QStringList>::success(mailboxes));
     }
 
-    // Data for fetchLastMessageUID
-    QJsonObject uidJsonObj = rootJsonObj["fetchLastMessageUID"].toObject();
-    for (auto it = uidJsonObj.constBegin(); it != uidJsonObj.constEnd(); ++it)
+    // Data for fetchLastMessageInfo
+    QJsonObject messageInfoRootObj = rootJsonObj["fetchLastMessageInfo"].toObject();
+    for (auto it = messageInfoRootObj.constBegin(); it != messageInfoRootObj.constEnd(); ++it)
     {
-        for (const QJsonValue &uidJsonVal : it.value().toArray())
+        for (const QJsonValue &messageInfoVal : it.value().toArray())
         {
-            int uid = uidJsonVal.toInt(-1) ;
-            Result<quint64> result = (uid == -1) ? Result<quint64>::error("error") : Result<quint64>::success(uid);
-            m_uids[it.key()].append(result);
+            QJsonObject messageInfoObj = messageInfoVal.toObject();
+
+            Result<MessageInfo> result = (!messageInfoObj.isEmpty())
+                ? Result<MessageInfo>::success(MessageInfo(messageInfoObj))
+                : Result<MessageInfo>::error("error");
+
+            m_messageInfos[it.key()].append(result);
         }
     }
 }
@@ -211,23 +247,23 @@ void MockMailClient::printTestData()
 {
     static const QString error = "<ERROR>";
 
-    QStringList fetchMailboxesTestDataStr;
+    QStringList fetchMailboxesStr;
     for (const Result<QStringList> &result : m_mailboxes)
     {
-        fetchMailboxesTestDataStr.append(QString("[%1]").arg(result.success() ? result.data().join(",") : error));
+        fetchMailboxesStr.append(QString("[%1]").arg(result.success() ? result.data().join(",") : error));
     }
-    logInfo() << "m_mailboxes:" << fetchMailboxesTestDataStr.join(", ");
+    logInfo() << "m_mailboxes:" << fetchMailboxesStr.join("; ");
 
-    QStringList fetchLastMessageUIDTestDataStr;
-    for (auto it = m_uids.constBegin(); it != m_uids.constEnd(); ++it)
+    QStringList fetchLastMessageInfoStr;
+    for (auto it = m_messageInfos.constBegin(); it != m_messageInfos.constEnd(); ++it)
     {
         QString mailbox = it.key();
-        QStringList uids;
-        for (const Result<quint64> &result : it.value())
+        QStringList fetchLastMessageInfoFromMailboxStrList;
+        for (const Result<MessageInfo> &result : it.value())
         {
-            uids.append(result.success() ? QString::number(result.data()) : error);
+            fetchLastMessageInfoFromMailboxStrList.append(result.success() ? result.data().toString(): error);
         }
-        fetchLastMessageUIDTestDataStr.append(QString("[%1:(%2)]").arg(mailbox).arg(uids.join(",")));
+        fetchLastMessageInfoStr.append(QString("[%1:(%2)]").arg(mailbox, fetchLastMessageInfoFromMailboxStrList.join("; ")));
     }
-    logInfo() << "m_uids:" << fetchLastMessageUIDTestDataStr.join(", ");
+    logInfo() << "m_messageInfos:" << fetchLastMessageInfoStr.join(", ");
 }

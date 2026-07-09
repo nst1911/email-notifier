@@ -82,7 +82,7 @@ private:
 namespace
 {
 const quint32 c_mailRequestIntervalMs = Examples::validDaemonConfig().mailRequestIntervalMs;
-const int c_lastMessageUIDFetchCount = 5; // just a random number - just to provide at least N ticks of timer = N fetchings of last message UID
+const int c_lastMessageInfoFetchCount = 5; // just a random number - just to provide at least N ticks of timer = N fetchings of last message info
 }
 
 void DaemonQtTest::status_data()
@@ -115,7 +115,7 @@ void DaemonQtTest::status_data()
 
     {
         MockPersistentStorage::TestData testData = happyPathStorageTestData();
-        testData.readErrorLogMessage = Result<Message>::error("error");
+        testData.readErrorLogMessage = Result<LogMessage>::error("error");
 
         IDaemon::Status status = Examples::validDaemonStatus();
         status.lastError = {};
@@ -444,8 +444,8 @@ void DaemonQtTest::startMonitoring_data()
 
     {
         MockMailClient::TestData mailClientTestData = happyPathMailClientTestData();
-        mailClientTestData.fetchLastMessageUIDsQueue.clear();
-        mailClientTestData.fetchLastMessageUIDsQueue.enqueue(Result<LastMessageUIDs>::error("error"));
+        mailClientTestData.fetchLastMessageInfoQueue.clear();
+        mailClientTestData.fetchLastMessageInfoQueue.enqueue(Result<MessageInfoMap>::error("error"));
 
         StartMonitoringResult result;
         result.success = false;
@@ -681,9 +681,9 @@ void DaemonQtTest::onMailRequestTimerTimeout_data()
         OnMailRequestTimerResult expectedResult;
         expectedResult.writeErrorLogMessageCalled = false;
         expectedResult.isMonitoringActivated = true;
-        expectedResult.mailRequestFinishedSignalCount = c_lastMessageUIDFetchCount;
-        // -1 because first time didn't count since last message UID would have not changed yet
-        expectedResult.notificationSentSignalsResults = QList<bool>(c_lastMessageUIDFetchCount - 1, true);
+        expectedResult.mailRequestFinishedSignalCount = c_lastMessageInfoFetchCount;
+        // -1 because first time didn't count since last message info would have not changed yet
+        expectedResult.notificationSentSignalsResults = QList<bool>(c_lastMessageInfoFetchCount - 1, true);
 
         QTest::newRow("Happy path")
             << happyPathStorageTestData()
@@ -694,24 +694,50 @@ void DaemonQtTest::onMailRequestTimerTimeout_data()
 
     {
         MockMailClient::TestData testData;
-        testData.fetchLastMessageUIDsQueue.clear();
-        for (int i = 0; i < c_lastMessageUIDFetchCount; ++i)
+        testData.fetchLastMessageInfoQueue.clear();
+        for (int i = 0; i < c_lastMessageInfoFetchCount; ++i)
         {
-            LastMessageUIDs lastMessageUIDs;
+            MessageInfoMap messageInfoMap;
             for (const QString &mailbox : Examples::validMailboxes())
             {
-                lastMessageUIDs[mailbox] = 1;
+                messageInfoMap[mailbox] = MessageInfo(1, false);
             }
-            testData.fetchLastMessageUIDsQueue.enqueue(Result<LastMessageUIDs>::success(lastMessageUIDs));
+            testData.fetchLastMessageInfoQueue.enqueue(Result<MessageInfoMap>::success(messageInfoMap));
         }
 
         OnMailRequestTimerResult expectedResult;
         expectedResult.writeErrorLogMessageCalled = false;
         expectedResult.isMonitoringActivated = true;
-        expectedResult.mailRequestFinishedSignalCount = c_lastMessageUIDFetchCount;
+        expectedResult.mailRequestFinishedSignalCount = c_lastMessageInfoFetchCount;
         expectedResult.notificationSentSignalsResults = {};
 
-        QTest::newRow("Happy path - no new mesasges")
+        QTest::newRow("Happy path - no new messages")
+            << happyPathStorageTestData()
+            << happyPathMailClientTestData()
+            << happyPathNotificationManagerTestData()
+            << expectedResult;
+    }
+
+    {
+        MockMailClient::TestData testData;
+        testData.fetchLastMessageInfoQueue.clear();
+        for (int i = 0; i < c_lastMessageInfoFetchCount; ++i)
+        {
+            MessageInfoMap messageInfoMap;
+            for (const QString &mailbox : Examples::validMailboxes())
+            {
+                messageInfoMap[mailbox] = MessageInfo(1, true);
+            }
+            testData.fetchLastMessageInfoQueue.enqueue(Result<MessageInfoMap>::success(messageInfoMap));
+        }
+
+        OnMailRequestTimerResult expectedResult;
+        expectedResult.writeErrorLogMessageCalled = false;
+        expectedResult.isMonitoringActivated = true;
+        expectedResult.mailRequestFinishedSignalCount = c_lastMessageInfoFetchCount;
+        expectedResult.notificationSentSignalsResults = {};
+
+        QTest::newRow("Happy path - Ignore seen messages")
             << happyPathStorageTestData()
             << happyPathMailClientTestData()
             << happyPathNotificationManagerTestData()
@@ -720,8 +746,8 @@ void DaemonQtTest::onMailRequestTimerTimeout_data()
 
     {
         MockMailClient::TestData testData = happyPathMailClientTestData();
-        testData.fetchLastMessageUIDsQueue.clear();
-        testData.fetchLastMessageUIDsQueue.enqueue(Result<LastMessageUIDs>::error("error"));
+        testData.fetchLastMessageInfoQueue.clear();
+        testData.fetchLastMessageInfoQueue.enqueue(Result<MessageInfoMap>::error("error"));
 
         OnMailRequestTimerResult expectedResult;
         expectedResult.writeErrorLogMessageCalled = true;
@@ -729,7 +755,7 @@ void DaemonQtTest::onMailRequestTimerTimeout_data()
         expectedResult.mailRequestFinishedSignalCount = 1;
         expectedResult.notificationSentSignalsResults = { false };
 
-        QTest::newRow("MailClient::fetchLastMessageUIDs failed")
+        QTest::newRow("MailClient::fetchLastMessageInfo failed")
             << happyPathStorageTestData()
             << testData
             << happyPathNotificationManagerTestData()
@@ -738,7 +764,7 @@ void DaemonQtTest::onMailRequestTimerTimeout_data()
 
     {
         MockPersistentStorage::TestData testData = happyPathStorageTestData();
-        testData.readLastMessageUIDs = Result<LastMessageUIDs>::error("error");
+        testData.readLastMessageInfo = Result<MessageInfoMap>::error("error");
 
         OnMailRequestTimerResult expectedResult;
         expectedResult.writeErrorLogMessageCalled = true;
@@ -746,7 +772,7 @@ void DaemonQtTest::onMailRequestTimerTimeout_data()
         expectedResult.mailRequestFinishedSignalCount = 1;
         expectedResult.notificationSentSignalsResults = { false };
 
-        QTest::newRow("PersistentStorage::readLastMessageUIDs failed")
+        QTest::newRow("PersistentStorage::readLastMessageInfo failed")
             << testData
             << happyPathMailClientTestData()
             << happyPathNotificationManagerTestData()
@@ -755,7 +781,7 @@ void DaemonQtTest::onMailRequestTimerTimeout_data()
 
     {
         MockPersistentStorage::TestData testData = happyPathStorageTestData();
-        testData.writeLastMessageUIDs = "error";
+        testData.writeLastMessageInfo = "error";
 
         OnMailRequestTimerResult expectedResult;
         expectedResult.writeErrorLogMessageCalled = true;
@@ -763,7 +789,7 @@ void DaemonQtTest::onMailRequestTimerTimeout_data()
         expectedResult.mailRequestFinishedSignalCount = 1;
         expectedResult.notificationSentSignalsResults = { false };
 
-        QTest::newRow("PersistentStorage::writeLastMessageUIDs failed")
+        QTest::newRow("PersistentStorage::writeLastMessageInfo failed")
             << testData
             << happyPathMailClientTestData()
             << happyPathNotificationManagerTestData()
@@ -842,7 +868,7 @@ void DaemonQtTest::setupInConstructor()
 
     MockPersistentStorage *mockStorage = static_cast<MockPersistentStorage*>(daemon->persistentStorage());
     QVERIFY(!mockStorage->m_writeDaemonConfigurationCalled);
-    QVERIFY(!mockStorage->m_writeLastMessageUIDsCalled);
+    QVERIFY(!mockStorage->m_writeLastMessageInfoCalled);
 }
 
 MockPersistentStorage::TestData DaemonQtTest::happyPathStorageTestData() const
@@ -851,9 +877,9 @@ MockPersistentStorage::TestData DaemonQtTest::happyPathStorageTestData() const
     testData.isValid = true;
     testData.readDaemonConfiguration = Result<IDaemon::Configuration>::success(Examples::validDaemonConfig());
     testData.writeDaemonConfiguration = "";
-    testData.readLastMessageUIDs = Result<LastMessageUIDs>::success(Examples::validLastMessageUIDs());
-    testData.writeLastMessageUIDs = "";
-    testData.readErrorLogMessage = Result<Message>::success(Examples::validErrorLogMessage());
+    testData.readLastMessageInfo = Result<MessageInfoMap>::success(Examples::validLastMessageInfo());
+    testData.writeLastMessageInfo = "";
+    testData.readErrorLogMessage = Result<LogMessage>::success(Examples::validErrorLogMessage());
     testData.writeErrorLogMessage = "";
     testData.writeErrorLogMessageCalled = false;
     testData.readPassword = Result<QString>::success(Examples::validMailClientConfig().password);
@@ -867,14 +893,14 @@ MockMailClient::TestData DaemonQtTest::happyPathMailClientTestData() const
     testData.isValid = true;
     testData.configuration = Examples::validMailClientConfig();
     testData.fetchMailboxes = Result<QStringList>::success(Examples::validMailboxes());
-    for (int i = 0; i < c_lastMessageUIDFetchCount; ++i)
+    for (int i = 0; i < c_lastMessageInfoFetchCount; ++i)
     {
-        LastMessageUIDs lastMessageUIDs;
+        MessageInfoMap messageInfoMap;
         for (const QString &mailbox : Examples::validMailboxes())
         {
-            lastMessageUIDs[mailbox] = i + 1;
+            messageInfoMap[mailbox] = MessageInfo(i + 1, false);
         }
-        testData.fetchLastMessageUIDsQueue.enqueue(Result<LastMessageUIDs>::success(lastMessageUIDs));
+        testData.fetchLastMessageInfoQueue.enqueue(Result<MessageInfoMap>::success(messageInfoMap));
     }
     return testData;
 }

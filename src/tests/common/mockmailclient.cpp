@@ -17,14 +17,14 @@ Result<QStringList> MockMailClient::fetchMailboxes(const Configuration &config)
     return m_testData.fetchMailboxes;
 }
 
-Result<LastMessageUIDs> MockMailClient::fetchLastMessageUIDs(const Configuration &config, const QStringList &mailboxes)
+Result<MessageInfoMap> MockMailClient::fetchLastMessageInfo(const Configuration &config, const QStringList &mailboxes)
 {
     Q_UNUSED(config);
     Q_UNUSED(mailboxes);
-    if (m_testData.fetchLastMessageUIDsQueue.isEmpty())
+    if (m_testData.fetchLastMessageInfoQueue.isEmpty())
     {
-        Result<QStringList>::error("empty");
+        return Result<MessageInfoMap>::error("empty");
     }
-    Result<LastMessageUIDs> result = m_testData.fetchLastMessageUIDsQueue.dequeue();
+    Result<MessageInfoMap> result = m_testData.fetchLastMessageInfoQueue.dequeue();
     return result;
 }

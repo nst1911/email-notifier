@@ -12,12 +12,12 @@ constexpr const char *c_dbusObjectPath = "com/github/emailnotifier";
 constexpr const char *c_startMonitoringErrorMsg = "Monitoring not started:";
 constexpr const char *c_mailRequestErrorMsg = "Mail request failed:";
 constexpr const char *c_fetchingMailboxesErrorMsg = "Fetching mailboxes failed:";
-constexpr const char *c_nullptrMsg = "One or more modules are nullptr.";
+constexpr const char *c_nullptrMsg = "One or more modules are nullptr";
 constexpr const char *c_setupErrorMsg = "Setting up daemon failed:";
 
-const QString c_readFromStorageFailedErrorMsg = "Reading '%1' from storage failed. Error: %2."; // clazy:skip
-const QString c_writeToStorageFailedErrorMsg = "Writing '%1' to storage failed. Error: %2."; // clazy:skip
-const QString c_invalidModuleMsg = "%1 is not valid."; // clazy:skip
+const QString c_readFromStorageFailedErrorMsg = "Reading '%1' from storage failed. Error: %2"; // clazy:skip
+const QString c_writeToStorageFailedErrorMsg = "Writing '%1' to storage failed. Error: %2"; // clazy:skip
+const QString c_invalidModuleMsg = "%1 is not valid"; // clazy:skip
 
 }
 
@@ -131,8 +131,8 @@ Result<IDaemon::Status> Daemon::status() const
         config = configResult.data();
     }
 
-    Message lastError;
-    Result<Message> lastErrorResult = m_storage->readErrorLogMessage();
+    LogMessage lastError;
+    Result<LogMessage> lastErrorResult = m_storage->readErrorLogMessage();
     if (!lastErrorResult.success())
     {
         errors.append(c_readFromStorageFailedErrorMsg.arg("lastError", lastErrorResult.errorMessage()));
@@ -338,45 +338,45 @@ QString Daemon::onMailRequestTimerTimeout(bool writeErrMsg)
 
     // Fetch last message UIDs from mail server
 
-    Result<LastMessageUIDs> fetchLastMessageUIDsResult = m_mailClient->fetchLastMessageUIDs(m_config.mailClient, m_config.mailboxes);
-    if (!fetchLastMessageUIDsResult.success())
+    Result<MessageInfoMap> fetchLastMessageInfoResult = m_mailClient->fetchLastMessageInfo(m_config.mailClient, m_config.mailboxes);
+    if (!fetchLastMessageInfoResult.success())
     {
         const QString msg = QString("%1 \"%2\"")
             .arg(c_mailRequestErrorMsg)
-            .arg(QString("Fetching lastMessageUID failed. Error: %1").arg(fetchLastMessageUIDsResult.errorMessage()));
+            .arg(QString("Fetching lastMessageInfo failed. Error: %1").arg(fetchLastMessageInfoResult.errorMessage()));
         notification = createErrorNotification(msg);
         return notification.body;
     }
 
-    Result<LastMessageUIDs> uidResult = m_storage->readLastMessageUIDs();
-    if (!uidResult.success())
+    Result<MessageInfoMap> readLastMessageInfoResult = m_storage->readLastMessageInfo();
+    if (!readLastMessageInfoResult.success())
     {
-        const QString msg = c_readFromStorageFailedErrorMsg.arg("lastMessageUIDs", uidResult.errorMessage());
+        const QString msg = c_readFromStorageFailedErrorMsg.arg("lastMessageInfo", readLastMessageInfoResult.errorMessage());
         notification = createErrorNotification(msg);
         return notification.body;
     }
 
-    LastMessageUIDs oldLastMessageUIDs = uidResult.data();
-    LastMessageUIDs newLastMessageUIDs = fetchLastMessageUIDsResult.data();
+    MessageInfoMap oldLastMessageInfoMap = readLastMessageInfoResult.data();
+    MessageInfoMap newLastMessageInfoMap = fetchLastMessageInfoResult.data();
 
-    logDebug() << "oldLastMessageUIDs =" << oldLastMessageUIDs << "; newLastMessageUIDs =" << newLastMessageUIDs;
+    logDebug() << "oldLastMessageInfoMap =" << oldLastMessageInfoMap << "; newLastMessageInfoMap =" << newLastMessageInfoMap;
 
-    if (QString uidsResult = m_storage->writeLastMessageUIDs(newLastMessageUIDs); !uidsResult.isEmpty())
+    if (QString writeLastMessageInfoResult = m_storage->writeLastMessageInfo(newLastMessageInfoMap); !writeLastMessageInfoResult.isEmpty())
     {
         const QString msg = QString("%1 \"%2\"")
             .arg(c_mailRequestErrorMsg)
-            .arg(c_writeToStorageFailedErrorMsg.arg("lastMessageUIDs", uidsResult));
+            .arg(c_writeToStorageFailedErrorMsg.arg("lastMessageInfo", writeLastMessageInfoResult));
         notification = createErrorNotification(msg);
         return notification.body;
     }
 
-    if (oldLastMessageUIDs.isEmpty())
+    if (oldLastMessageInfoMap.isEmpty())
     {
         logInfo() << "Mail request finished: \"New messages not found (first request after setting up daemon)\"";
         return "";
     }
 
-    QStringList mailboxesWithUpdates = compareLastMessageUIDs(oldLastMessageUIDs, newLastMessageUIDs);
+    QStringList mailboxesWithUpdates = compareLastMessageInfo(oldLastMessageInfoMap, newLastMessageInfoMap);
     if (mailboxesWithUpdates.isEmpty())
     {
         logInfo() << "Mail request finished: \"New messages not found\"";
@@ -463,10 +463,10 @@ QString Daemon::setup(const IDaemon::Configuration &config, SetupMode mode)
             return result;
         }
 
-        // Clear last message UIDs
-        if (QString uidResult = m_storage->writeLastMessageUIDs({}); !uidResult.isEmpty())
+        // Clear last message info
+        if (QString writeLastMessageInfoResult = m_storage->writeLastMessageInfo({}); !writeLastMessageInfoResult.isEmpty())
         {
-            result = c_writeToStorageFailedErrorMsg.arg("lastMessageUIDs", uidResult);
+            result = c_writeToStorageFailedErrorMsg.arg("lastMessageInfo", writeLastMessageInfoResult);
             return result;
         }
     }
@@ -496,10 +496,10 @@ void Daemon::writeErrorLogMessage(const QString &funcName, const QString &messag
         return;
     }
 
-    Message msg;
+    LogMessage msg;
     msg.message = formattedMsg;
     msg.timestamp = QDateTime::currentDateTime();
-    msg.type = Message::Error;
+    msg.type = LogMessage::Error;
 
     if (QString result = m_storage->writeErrorLogMessage(msg); !result.isEmpty())
     {
@@ -508,17 +508,17 @@ void Daemon::writeErrorLogMessage(const QString &funcName, const QString &messag
     }
 }
 
-QStringList Daemon::compareLastMessageUIDs(const LastMessageUIDs &oldUids, const LastMessageUIDs &newUids) const
+QStringList Daemon::compareLastMessageInfo(const MessageInfoMap &oldMap, const MessageInfoMap &newMap) const
 {
     QStringList mailboxes;
 
-    for (auto it = newUids.constBegin(); it != newUids.constEnd(); ++it)
+    for (auto it = newMap.constBegin(); it != newMap.constEnd(); ++it)
     {
-        if (!oldUids.contains(it.key()))
+        if (!oldMap.contains(it.key()))
         {
             continue;
         }
-        if (it.value() != oldUids.value(it.key()))
+        if (it.value() != oldMap.value(it.key()) && !it.value().seen)
         {
             mailboxes.append(it.key());
             break;

@@ -10,8 +10,8 @@ private slots:
     void fetchMailboxes_data();
     void fetchMailboxes();
 
-    void fetchLastMessageUIDs_data();
-    void fetchLastMessageUIDs();
+    void fetchLastMessageInfo_data();
+    void fetchLastMessageInfo();
 };
 
 void BaseMailClientQtTest::fetchMailboxes_data()
@@ -86,25 +86,25 @@ void BaseMailClientQtTest::fetchMailboxes()
     QCOMPARE(result.data(), expectedResultMailboxes);
 }
 
-void BaseMailClientQtTest::fetchLastMessageUIDs_data()
+void BaseMailClientQtTest::fetchLastMessageInfo_data()
 {
     QTest::addColumn<IMailClient::Configuration>("config");
     QTest::addColumn<QStringList>("mailboxes");
     QTest::addColumn<bool>("expectedResultSuccess");
-    QTest::addColumn<LastMessageUIDs>("expectedResultLastMessageUIDs");
+    QTest::addColumn<MessageInfoMap>("expectedResultMessageInfoMap");
 
     {
-        LastMessageUIDs lastMessageUIDs;
+        MessageInfoMap messageInfoMap;
         for (const QString &mailbox : Examples::validMailboxes())
         {
-            lastMessageUIDs.insert(mailbox, 6);
+            messageInfoMap.insert(mailbox, MessageInfo(6, false));
         }
 
         QTest::newRow("Happy path")
             << Examples::validMailClientConfig()
             << Examples::validMailboxes()
             << true
-            << lastMessageUIDs;
+            << messageInfoMap;
     }
 
     {
@@ -115,7 +115,7 @@ void BaseMailClientQtTest::fetchLastMessageUIDs_data()
             << config
             << Examples::validMailboxes()
             << false
-            << LastMessageUIDs{};
+            << MessageInfoMap{};
     }
 
     {
@@ -126,7 +126,7 @@ void BaseMailClientQtTest::fetchLastMessageUIDs_data()
             << config
             << Examples::validMailboxes()
             << false
-            << LastMessageUIDs{};
+            << MessageInfoMap{};
     }
 
     {
@@ -137,7 +137,7 @@ void BaseMailClientQtTest::fetchLastMessageUIDs_data()
             << config
             << Examples::validMailboxes()
             << false
-            << LastMessageUIDs{};
+            << MessageInfoMap{};
     }
 
     {
@@ -148,7 +148,7 @@ void BaseMailClientQtTest::fetchLastMessageUIDs_data()
             << config
             << Examples::validMailboxes()
             << false
-            << LastMessageUIDs{};
+            << MessageInfoMap{};
     }
 
     {
@@ -156,27 +156,27 @@ void BaseMailClientQtTest::fetchLastMessageUIDs_data()
             << Examples::validMailClientConfig()
             << QStringList{}
             << false
-            << LastMessageUIDs{};
+            << MessageInfoMap{};
     }
 }
 
-void BaseMailClientQtTest::fetchLastMessageUIDs()
+void BaseMailClientQtTest::fetchLastMessageInfo()
 {
     // Assign
     QFETCH(IMailClient::Configuration, config);
     QFETCH(QStringList, mailboxes);
     QFETCH(bool, expectedResultSuccess);
-    QFETCH(LastMessageUIDs, expectedResultLastMessageUIDs);
+    QFETCH(MessageInfoMap, expectedResultMessageInfoMap);
 
     TestBaseMailClient mailClient;
-    mailClient.m_fetchLastMessageUID = Result<quint64>::success(6);;
+    mailClient.m_fetchLastMessageInfoFromMailbox = Result<MessageInfo>::success(MessageInfo(6, false));
 
     // Act
-    Result<LastMessageUIDs> result = mailClient.fetchLastMessageUIDs(config, mailboxes);
+    Result<MessageInfoMap> result = mailClient.fetchLastMessageInfo(config, mailboxes);
 
     // Assert
     QCOMPARE(result.errorMessage().isEmpty(), expectedResultSuccess);
-    QCOMPARE(result.data(), expectedResultLastMessageUIDs);
+    QCOMPARE(result.data(), expectedResultMessageInfoMap);
 }
 
 QTEST_GUILESS_MAIN(BaseMailClientQtTest)

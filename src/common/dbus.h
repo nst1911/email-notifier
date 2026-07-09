@@ -9,7 +9,7 @@
 
 void registerDBusMetaTypes();
 
-QDBusArgument &operator<<(QDBusArgument &argument, const Message &message);
+QDBusArgument &operator<<(QDBusArgument &argument, const LogMessage &message);
 QDBusArgument &operator<<(QDBusArgument &argument, IDaemon::PasswordType passwordType);
 QDBusArgument &operator<<(QDBusArgument &argument, const IMailClient::Configuration &config);
 QDBusArgument &operator<<(QDBusArgument &argument, const IDaemon::Configuration &config);
@@ -17,7 +17,7 @@ QDBusArgument &operator<<(QDBusArgument &argument, const IDaemon::Status &status
 QDBusArgument &operator<<(QDBusArgument &argument, const Result<IDaemon::Status> &result);
 QDBusArgument &operator<<(QDBusArgument &argument, const Result<QStringList> &result);
 
-const QDBusArgument &operator>>(const QDBusArgument &argument, Message &message);
+const QDBusArgument &operator>>(const QDBusArgument &argument, LogMessage &message);
 const QDBusArgument &operator>>(const QDBusArgument &argument, IDaemon::PasswordType &passwordType);
 const QDBusArgument &operator>>(const QDBusArgument &argument, IMailClient::Configuration &config);
 const QDBusArgument &operator>>(const QDBusArgument &argument, IDaemon::Configuration &config);

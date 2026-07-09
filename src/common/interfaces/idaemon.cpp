@@ -2,10 +2,10 @@
 #include <QJsonDocument>
 
 IDaemon::Configuration::Configuration(const QJsonObject &obj)
+    : mailClient(IMailClient::Configuration(obj["mailClient"].toObject())),
+      mailboxes(obj["mailboxes"].toString().split(";", Qt::SkipEmptyParts)),
+      mailRequestIntervalMs(obj["mailRequestIntervalMs"].toString().toULong())
 {
-    mailClient = IMailClient::Configuration(obj["mailClient"].toObject());
-    mailboxes = obj["mailboxes"].toString().split(";", Qt::SkipEmptyParts);
-    mailRequestIntervalMs = obj["mailRequestIntervalMs"].toString().toULongLong();
 }
 
 bool IDaemon::Configuration::isValid() const

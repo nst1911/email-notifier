@@ -2,7 +2,7 @@
 
 #include "interfaces/idaemon.h"
 #include "interfaces/imailclient.h"
-#include "message.h"
+#include "logmessage.h"
 
 namespace Examples
 {
@@ -16,7 +16,7 @@ IMailClient::Configuration validMailClientConfig()
 {
     IMailClient::Configuration config;
     config.host = "imap.yandex.ru";
-    config.port = 67;
+    config.port = 993;
     config.login = "nst1911@yandex.ru";
     config.password = "password123fffff";
     return config;
@@ -31,24 +31,24 @@ IDaemon::Configuration validDaemonConfig()
     return config;
 }
 
-LastMessageUIDs validLastMessageUIDs()
+MessageInfoMap validLastMessageInfo()
 {
-    LastMessageUIDs lastMessageUIDs;
+    MessageInfoMap messageInfoMap;
     int i = 0;
     for (const QString &mailbox : validMailboxes())
     {
-        lastMessageUIDs[mailbox] = i + 1;
+        messageInfoMap[mailbox] = MessageInfo(i + 1, false);
         i++;
     }
-    return lastMessageUIDs;
+    return messageInfoMap;
 }
 
-Message validErrorLogMessage()
+LogMessage validErrorLogMessage()
 {
-    Message message;
+    LogMessage message;
     message.message = "error";
     message.timestamp = QDateTime(QDate(1996, 11, 26), QTime(7, 40, 33, 255));
-    message.type = Message::Error;
+    message.type = LogMessage::Error;
     return message;
 }
 

@@ -17,9 +17,9 @@ Result<QStringList> TestBaseMailClient::fetchMailboxesImpl(const Configuration &
     return m_fetchMailboxesImpl;
 }
 
-Result<quint64> TestBaseMailClient::fetchLastMessageUID(const Configuration &config, const QString &mailbox)
+Result<MessageInfo> TestBaseMailClient::fetchLastMessageInfoFromMailbox(const Configuration &config, const QString &mailbox)
 {
     Q_UNUSED(config);
     Q_UNUSED(mailbox);
-    return m_fetchLastMessageUID;
+    return m_fetchLastMessageInfoFromMailbox;
 }

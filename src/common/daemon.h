@@ -58,8 +58,7 @@ private:
 
     void writeErrorLogMessage(const QString &funcName, const QString &message);
 
-    QStringList mailboxesWhereLastMessageUIDsNotEqual(const LastMessageUIDs &uids) const;
-    QStringList compareLastMessageUIDs(const LastMessageUIDs &oldUids, const LastMessageUIDs &newUids) const;
+    QStringList compareLastMessageInfo(const MessageInfoMap &oldMap, const MessageInfoMap &newMap) const;
 
     bool checkModulesNullptr() const;
 
